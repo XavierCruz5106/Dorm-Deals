@@ -728,3 +728,30 @@ export async function getMessages(conversationId: string) {
   return (data as Message[]) ?? []
 }
 
+export async function deleteConversation(conversationId: string) {
+  const { userId } = await auth()
+  if (!userId) {
+    return { error: "You must be signed in." }
+  }
+
+  // verify user is part of the conversation
+  const conv = await getConversationById(conversationId)
+  if (!conv || (conv.user1_id !== userId && conv.user2_id !== userId)) {
+    return { error: "You can only delete your own conversations." }
+  }
+
+  // delete conversation (messages will cascade delete due to ON DELETE CASCADE)
+  const { error } = await supabase
+    .from("conversations")
+    .delete()
+    .eq("id", conversationId)
+
+  if (error) {
+    console.error("error deleting conversation", error)
+    return { error: "Failed to delete conversation." }
+  }
+
+  revalidatePath("/messages")
+  return { success: true }
+}
+

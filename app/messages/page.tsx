@@ -2,9 +2,9 @@ import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { getConversationsForUser } from "@/app/actions"
 import { Conversation } from "@/lib/types"
-import Link from "next/link"
 import { clerkClient } from "@clerk/nextjs/server"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ConversationItem } from "@/components/conversation-item"
 
 export default async function MessagesPage() {
   const { userId } = await auth()
@@ -73,15 +73,12 @@ export default async function MessagesPage() {
               </div>
               <div className="divide-y divide-border">
                 {convs.map((conv) => (
-                  <Link
+                  <ConversationItem
                     key={conv.id}
-                    href={`/messages/${conv.id}`}
-                    className="mt-2 block rounded-lg border border-border px-4 py-3 hover:bg-accent/50"
-                  >
-                    <p className="text-foreground">
-                      Conversation started {new Date(conv.created_at).toLocaleString()}
-                    </p>
-                  </Link>
+                    conversationId={conv.id}
+                    partnerName={renderPartnerName(conv)}
+                    createdAt={conv.created_at}
+                  />
                 ))}
               </div>
             </div>
