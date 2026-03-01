@@ -3,8 +3,8 @@
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import type { Item } from "@/app/actions"
-import { ImageIcon } from "lucide-react"
 import { FavoriteButton } from "@/components/favorite-button"
+import { ItemImage } from "@/components/item-image"
 
 export function ItemCard({ item }: { item: Item }) {
   return (
@@ -19,18 +19,12 @@ export function ItemCard({ item }: { item: Item }) {
           className="absolute left-2 top-2 z-20 h-8 w-8 rounded-full bg-background/90 shadow-sm"
         />
 
-        {item.image_url ? (
-          <img
-            src={item.image_url}
-            alt={item.title}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            crossOrigin="anonymous"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <ImageIcon className="h-12 w-12 text-muted-foreground/40" />
-          </div>
-        )}
+        <ItemImage
+          src={item.image_url}
+          alt={item.title}
+          className="transition-transform duration-300 group-hover:scale-105"
+          fallbackClassName="bg-muted"
+        />
 
         {/* Sold overlay */}
         {item.is_sold && (

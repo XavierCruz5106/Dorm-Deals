@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ImageIcon, ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ItemDetailActions } from "@/components/item-detail-actions"
@@ -11,6 +11,7 @@ import { RatingForm } from "@/components/rating-form"
 import { FavoriteButton } from "@/components/favorite-button"
 import { BuyNowButton } from "@/components/buy-now-button"
 import { SellerRatingSummary } from "@/components/seller-rating-summary"
+import { ItemImage } from "@/components/item-image"
 
 export default async function ItemDetailPage({
   params,
@@ -37,18 +38,7 @@ export default async function ItemDetailPage({
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* Image */}
         <div className="relative aspect-square overflow-hidden rounded-xl border border-border bg-muted">
-          {item.image_url ? (
-            <img
-              src={item.image_url}
-              alt={item.title}
-              className="h-full w-full object-cover"
-              crossOrigin="anonymous"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <ImageIcon className="h-20 w-20 text-muted-foreground/30" />
-            </div>
-          )}
+          <ItemImage src={item.image_url} alt={item.title} fallbackClassName="bg-muted" />
           {item.is_sold && (
             <div className="absolute inset-0 flex items-center justify-center bg-foreground/60">
               <span className="rounded-lg bg-destructive px-6 py-2 text-lg font-bold uppercase tracking-wider text-primary-foreground">

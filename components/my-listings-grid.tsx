@@ -12,7 +12,6 @@ import {
   Undo2,
   Trash2,
   Loader2,
-  ImageIcon,
   ExternalLink,
   PackageOpen,
   Plus,
@@ -28,6 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { ItemImage } from "@/components/item-image"
 
 export function MyListingsGrid({ items }: { items: Item[] }) {
   if (items.length === 0) {
@@ -94,18 +94,7 @@ function MyListingRow({ item }: { item: Item }) {
     <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center">
       {/* Thumbnail */}
       <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
-        {item.image_url ? (
-          <img
-            src={item.image_url}
-            alt={item.title}
-            className="h-full w-full object-cover"
-            crossOrigin="anonymous"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
-          </div>
-        )}
+        <ItemImage src={item.image_url} alt={item.title} fallbackClassName="bg-muted" />
         {item.is_sold && (
           <div className="absolute inset-0 flex items-center justify-center bg-foreground/60">
             <span className="text-[10px] font-bold uppercase text-primary-foreground">
