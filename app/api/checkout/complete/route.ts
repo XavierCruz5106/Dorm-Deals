@@ -1,30 +1,6 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
-
-function digitsOnly(value: string) {
-  return value.replace(/\D/g, "")
-}
-
-function isLikelyFutureMonth(exp: string) {
-  const cleaned = exp.trim()
-  const [monthRaw, yearRaw] = cleaned.split("/")
-  if (!monthRaw || !yearRaw) {
-    return false
-  }
-
-  const month = Number(monthRaw)
-  const year = Number(yearRaw.length === 2 ? `20${yearRaw}` : yearRaw)
-  if (!Number.isInteger(month) || !Number.isInteger(year) || month < 1 || month > 12) {
-    return false
-  }
-
-  const now = new Date()
-  const currentMonth = now.getMonth() + 1
-  const currentYear = now.getFullYear()
-
-  return year > currentYear || (year === currentYear && month >= currentMonth)
-}
+import { supabaseServer as supabase } from "@/lib/supabase-server"
 
 export async function POST(req: Request) {
   try {
@@ -33,29 +9,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "You must be signed in to purchase." }, { status: 401 })
     }
 
-    const body = (await req.json()) as {
-      itemId?: string
-      cardNumber?: string
-      cardName?: string
-      exp?: string
-      cvc?: string
-    }
-
+    const body = (await req.json()) as { itemId?: string }
     const itemId = String(body.itemId || "")
-    const cardNumber = digitsOnly(String(body.cardNumber || ""))
-    const cardName = String(body.cardName || "").trim()
-    const exp = String(body.exp || "").trim()
-    const cvc = digitsOnly(String(body.cvc || ""))
 
     if (!itemId) {
       return NextResponse.json({ error: "Missing item." }, { status: 400 })
-    }
-
-    if (cardNumber.length < 16 || cardName.length < 2 || cvc.length < 3 || !isLikelyFutureMonth(exp)) {
-      return NextResponse.json(
-        { error: "Payment failed. Check card details and try again." },
-        { status: 400 },
-      )
     }
 
     const { data: item, error: itemError } = await supabase
@@ -88,7 +46,6 @@ export async function POST(req: Request) {
     }
 
     const purchaseId = `mock_checkout_${crypto.randomUUID()}`
-    const paymentIntentId = `mock_pi_${crypto.randomUUID()}`
 
     const { error: purchaseError } = await supabase.from("purchases").upsert(
       {
@@ -98,7 +55,7 @@ export async function POST(req: Request) {
         amount_total_cents: Math.round(Number(item.price) * 100),
         currency: "usd",
         stripe_checkout_session_id: purchaseId,
-        stripe_payment_intent_id: paymentIntentId,
+        stripe_payment_intent_id: null,
       },
       { onConflict: "stripe_checkout_session_id" },
     )

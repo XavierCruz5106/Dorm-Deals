@@ -2,9 +2,15 @@
 
 import { type MouseEvent, useEffect, useState } from "react"
 import { Heart } from "lucide-react"
+import { useAuth } from "@clerk/nextjs"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { FAVORITES_UPDATED_EVENT, readFavoriteIds, toggleFavoriteId } from "@/lib/favorites"
+import {
+  FAVORITES_UPDATED_EVENT,
+  readFavoriteIds,
+  toggleFavoriteId,
+} from "@/lib/favorites"
 
 export function FavoriteButton({
   itemId,
@@ -16,10 +22,11 @@ export function FavoriteButton({
   showLabel?: boolean
 }) {
   const [isFavorite, setIsFavorite] = useState(false)
+  const { isSignedIn, userId } = useAuth()
 
   useEffect(() => {
     function syncFavorite() {
-      const favorites = readFavoriteIds()
+      const favorites = isSignedIn ? readFavoriteIds(userId) : new Set<string>()
       setIsFavorite(favorites.has(itemId))
     }
 
@@ -31,14 +38,20 @@ export function FavoriteButton({
       window.removeEventListener(FAVORITES_UPDATED_EVENT, syncFavorite)
       window.removeEventListener("storage", syncFavorite)
     }
-  }, [itemId])
+  }, [itemId, isSignedIn, userId])
 
   function toggleFavorite(e?: MouseEvent) {
     e?.preventDefault()
     e?.stopPropagation()
 
-    const favorites = toggleFavoriteId(itemId)
-    setIsFavorite(favorites.has(itemId))
+    if (!isSignedIn || !userId) {
+      toast.info("Sign in to save favorites to your account.")
+      return
+    }
+
+    const favorites = toggleFavoriteId(itemId, userId)
+    const nextFavoriteState = favorites.has(itemId)
+    setIsFavorite(nextFavoriteState)
   }
 
   return (

@@ -3,7 +3,6 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ProfileEditForm } from "@/components/profile-edit-form"
-import { StripeConnectButtons } from "@/components/stripe-connect-buttons"
 import {
   getOrCreateMyProfile,
   getRatingSummaryForUser,
@@ -50,19 +49,6 @@ export default async function EditProfilePage() {
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-xs text-muted-foreground">Member ID</p>
           <p className="truncate text-sm font-semibold text-foreground">{userId}</p>
-        </div>
-      </div>
-
-      <div className="mb-6 rounded-xl border border-border bg-card p-5">
-        <h2 className="text-lg font-semibold text-foreground">Payments</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Connect the simulated Stripe system to receive demo payouts from purchases.
-        </p>
-        <p className="mt-3 text-sm text-foreground">
-          Status: {profile?.stripe_account_id ? "Connected (Simulated)" : "Not connected"}
-        </p>
-        <div className="mt-4">
-          <StripeConnectButtons isConnected={Boolean(profile?.stripe_account_id)} />
         </div>
       </div>
 

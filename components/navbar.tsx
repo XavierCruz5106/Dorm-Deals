@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
+import { SignInButton, SignedIn, SignedOut, UserButton, useAuth } from "@clerk/nextjs"
 import { Store, Plus, Package, Menu, X, Users, Star, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { InboxLink } from "@/components/inbox-link"
@@ -11,10 +11,11 @@ import { FAVORITES_UPDATED_EVENT, readFavoriteIds } from "@/lib/favorites"
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [favoriteCount, setFavoriteCount] = useState(0)
+  const { isSignedIn, userId } = useAuth()
 
   useEffect(() => {
     function syncFavorites() {
-      setFavoriteCount(readFavoriteIds().size)
+      setFavoriteCount(isSignedIn ? readFavoriteIds(userId).size : 0)
     }
 
     syncFavorites()
@@ -25,7 +26,7 @@ export function Navbar() {
       window.removeEventListener(FAVORITES_UPDATED_EVENT, syncFavorites)
       window.removeEventListener("storage", syncFavorites)
     }
-  }, [])
+  }, [isSignedIn, userId])
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

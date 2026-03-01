@@ -2,7 +2,7 @@
 
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { revalidatePath } from "next/cache"
-import { supabase } from "@/lib/supabase"
+import { supabaseServer as supabase } from "@/lib/supabase-server"
 import { Conversation, Message } from "@/lib/types"
 import util from "util"
 
@@ -434,10 +434,6 @@ export async function createRating(formData: FormData) {
     return { error: "You cannot rate your own listing." }
   }
 
-  if (!item.is_sold) {
-    return { error: "Ratings can only be submitted after an item is marked sold." }
-  }
-
   const { data: existing, error: existingError } = await supabase
     .from("ratings")
     .select("id")
@@ -447,7 +443,7 @@ export async function createRating(formData: FormData) {
 
   if (existingError && (existingError as { code?: string }).code !== "PGRST116") {
     if (isMissingTableError(existingError)) {
-      return { error: "Ratings table is missing. Please run the DB migration first." }
+      return { error: "Ratings are temporarily unavailable. Please try again later." }
     }
 
     console.error("Error checking existing rating:", existingError)
@@ -484,7 +480,7 @@ export async function createRating(formData: FormData) {
 
   if (error) {
     if (isMissingTableError(error)) {
-      return { error: "Ratings table is missing. Please run the DB migration first." }
+      return { error: "Ratings are temporarily unavailable. Please try again later." }
     }
 
     console.error("Error creating rating:", error)

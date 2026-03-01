@@ -5,9 +5,11 @@ import { getItems, type Item } from "@/app/actions"
 import { ItemGrid } from "@/components/item-grid"
 import { SearchFilter } from "@/components/search-filter"
 import { Heart } from "lucide-react"
+import { useAuth } from "@clerk/nextjs"
 import { FAVORITES_UPDATED_EVENT, readFavoriteIds } from "@/lib/favorites"
 
 export default function FavoritesPage() {
+  const { isSignedIn, userId } = useAuth()
   const [items, setItems] = useState<Item[]>([])
   const [search, setSearch] = useState("")
   const [condition, setCondition] = useState("all")
@@ -31,7 +33,7 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     function syncFavorites() {
-      setFavoriteIds(readFavoriteIds())
+      setFavoriteIds(isSignedIn ? readFavoriteIds(userId) : new Set<string>())
     }
 
     syncFavorites()
@@ -42,7 +44,7 @@ export default function FavoritesPage() {
       window.removeEventListener(FAVORITES_UPDATED_EVENT, syncFavorites)
       window.removeEventListener("storage", syncFavorites)
     }
-  }, [])
+  }, [isSignedIn, userId])
 
   const favoriteItems = items.filter((item) => favoriteIds.has(item.id))
 
