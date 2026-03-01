@@ -2,13 +2,34 @@
 
 import Link from "next/link"
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
-import { Store, Plus, Package, Menu, X } from "lucide-react"
+import { Store, Plus, Package, Menu, X, Users, Star, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
+<<<<<<< HEAD
 import { InboxLink } from "@/components/inbox-link"
 import { useState } from "react"
+=======
+import { useEffect, useState } from "react"
+import { FAVORITES_UPDATED_EVENT, readFavoriteIds } from "@/lib/favorites"
+>>>>>>> 4523922e2364871d8071c08fa3c70ac5ed3c30b7
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [favoriteCount, setFavoriteCount] = useState(0)
+
+  useEffect(() => {
+    function syncFavorites() {
+      setFavoriteCount(readFavoriteIds().size)
+    }
+
+    syncFavorites()
+    window.addEventListener(FAVORITES_UPDATED_EVENT, syncFavorites)
+    window.addEventListener("storage", syncFavorites)
+
+    return () => {
+      window.removeEventListener(FAVORITES_UPDATED_EVENT, syncFavorites)
+      window.removeEventListener("storage", syncFavorites)
+    }
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -24,7 +45,30 @@ export function Navbar() {
 
         {/* Desktop nav */}
         <div className="hidden items-center gap-2 md:flex">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/profiles" className="gap-1.5">
+              <Users className="h-4 w-4" />
+              Profiles
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/favorites" className="gap-1.5">
+              <Heart className="h-4 w-4" />
+              Favorites
+              {favoriteCount > 0 ? (
+                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
+                  {favoriteCount}
+                </span>
+              ) : null}
+            </Link>
+          </Button>
           <SignedIn>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/ratings" className="gap-1.5">
+                <Star className="h-4 w-4" />
+                Ratings
+              </Link>
+            </Button>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/my-listings" className="gap-1.5">
                 <Package className="h-4 w-4" />
@@ -72,7 +116,30 @@ export function Navbar() {
       {mobileOpen && (
         <div className="border-t border-border bg-background px-4 py-4 md:hidden">
           <div className="flex flex-col gap-3">
+            <Button variant="ghost" size="sm" asChild className="justify-start">
+              <Link href="/profiles" onClick={() => setMobileOpen(false)} className="gap-2">
+                <Users className="h-4 w-4" />
+                Profiles
+              </Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild className="justify-start">
+              <Link href="/favorites" onClick={() => setMobileOpen(false)} className="gap-2">
+                <Heart className="h-4 w-4" />
+                Favorites
+                {favoriteCount > 0 ? (
+                  <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
+                    {favoriteCount}
+                  </span>
+                ) : null}
+              </Link>
+            </Button>
             <SignedIn>
+              <Button variant="ghost" size="sm" asChild className="justify-start">
+                <Link href="/ratings" onClick={() => setMobileOpen(false)} className="gap-2">
+                  <Star className="h-4 w-4" />
+                  Ratings
+                </Link>
+              </Button>
               <Button variant="ghost" size="sm" asChild className="justify-start">
                 <Link href="/my-listings" onClick={() => setMobileOpen(false)} className="gap-2">
                   <Package className="h-4 w-4" />
