@@ -4,13 +4,9 @@ import Link from "next/link"
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
 import { Store, Plus, Package, Menu, X, Users, Star, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
-<<<<<<< HEAD
 import { InboxLink } from "@/components/inbox-link"
-import { useState } from "react"
-=======
 import { useEffect, useState } from "react"
 import { FAVORITES_UPDATED_EVENT, readFavoriteIds } from "@/lib/favorites"
->>>>>>> 4523922e2364871d8071c08fa3c70ac5ed3c30b7
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
