@@ -8,9 +8,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
   FAVORITES_UPDATED_EVENT,
-  addDbFavorite,
   readFavoriteIds,
-  removeDbFavorite,
   toggleFavoriteId,
 } from "@/lib/favorites"
 
@@ -24,11 +22,11 @@ export function FavoriteButton({
   showLabel?: boolean
 }) {
   const [isFavorite, setIsFavorite] = useState(false)
-  const { isSignedIn } = useAuth()
+  const { isSignedIn, userId } = useAuth()
 
   useEffect(() => {
     function syncFavorite() {
-      const favorites = readFavoriteIds()
+      const favorites = isSignedIn ? readFavoriteIds(userId) : new Set<string>()
       setIsFavorite(favorites.has(itemId))
     }
 
@@ -40,38 +38,20 @@ export function FavoriteButton({
       window.removeEventListener(FAVORITES_UPDATED_EVENT, syncFavorite)
       window.removeEventListener("storage", syncFavorite)
     }
-  }, [itemId])
+  }, [itemId, isSignedIn, userId])
 
-  async function toggleFavorite(e?: MouseEvent) {
+  function toggleFavorite(e?: MouseEvent) {
     e?.preventDefault()
     e?.stopPropagation()
 
-    const previousFavoriteState = isFavorite
-    const favorites = toggleFavoriteId(itemId)
-    const nextFavoriteState = favorites.has(itemId)
-    setIsFavorite(nextFavoriteState)
-
-    if (!isSignedIn) {
+    if (!isSignedIn || !userId) {
+      toast.info("Sign in to save favorites to your account.")
       return
     }
 
-    try {
-      if (nextFavoriteState) {
-        await addDbFavorite(itemId)
-      } else {
-        await removeDbFavorite(itemId)
-      }
-    } catch (error) {
-      // keep local and DB state consistent if request fails
-      const rollback = toggleFavoriteId(itemId)
-      setIsFavorite(rollback.has(itemId))
-      toast.error(
-        previousFavoriteState
-          ? "Could not remove favorite in database."
-          : "Could not save favorite in database.",
-      )
-      console.error("Favorite sync error:", error)
-    }
+    const favorites = toggleFavoriteId(itemId, userId)
+    const nextFavoriteState = favorites.has(itemId)
+    setIsFavorite(nextFavoriteState)
   }
 
   return (

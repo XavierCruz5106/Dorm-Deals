@@ -2,50 +2,23 @@
 
 import { useAuth } from "@clerk/nextjs"
 import { useEffect } from "react"
-import { fetchDbFavoriteIds, readFavoriteIds, writeFavoriteIds } from "@/lib/favorites"
+import { writeFavoriteIds } from "@/lib/favorites"
 
 export function FavoritesSync() {
-  const { isLoaded, isSignedIn } = useAuth()
+  const { isLoaded, isSignedIn, userId } = useAuth()
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) {
+    if (!isLoaded) {
       return
     }
 
-    let cancelled = false
-
-    async function syncFromDb() {
-      try {
-        const dbFavorites = await fetchDbFavoriteIds()
-        if (!cancelled) {
-          writeFavoriteIds(dbFavorites)
-        }
-      } catch {
-        // no-op: fallback local favorites remain available
-      }
+    if (!isSignedIn || !userId) {
+      writeFavoriteIds(new Set<string>(), null)
+      return
     }
 
-    async function syncToDbFromLocal() {
-      try {
-        const localFavorites = Array.from(readFavoriteIds())
-        for (const itemId of localFavorites) {
-          await fetch("/api/favorites", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ itemId }),
-          })
-        }
-      } catch {
-        // no-op
-      }
-    }
-
-    syncToDbFromLocal().then(syncFromDb)
-
-    return () => {
-      cancelled = true
-    }
-  }, [isLoaded, isSignedIn])
+    return
+  }, [isLoaded, isSignedIn, userId])
 
   return null
 }

@@ -1,54 +1,91 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
-import { createRating } from "@/app/actions"
+import { useEffect, useState } from "react"
+import { useAuth, useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Star } from "lucide-react"
 import { toast } from "sonner"
+import { getMyRatingForItem, upsertLocalRating } from "@/lib/local-ratings"
 
 type Props = {
   itemId: string
   sellerName: string
-  alreadyRated: boolean
+  sellerUserId: string
 }
 
-export function RatingForm({ itemId, sellerName, alreadyRated }: Props) {
-  const router = useRouter()
-  const [isPending, startTransition] = useTransition()
+export function RatingForm({ itemId, sellerName, sellerUserId }: Props) {
+  const { isSignedIn, userId } = useAuth()
+  const { user } = useUser()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [alreadyRated, setAlreadyRated] = useState(false)
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState("")
   const [tags, setTags] = useState("")
 
+  useEffect(() => {
+    if (!userId) {
+      setAlreadyRated(false)
+      return
+    }
+
+    const existing = getMyRatingForItem(itemId, userId)
+    setAlreadyRated(Boolean(existing))
+  }, [itemId, userId])
+
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+
+    if (!isSignedIn || !userId) {
+      toast.info("Sign in to leave a rating.")
+      return
+    }
+
+    if (sellerUserId === userId) {
+      toast.info("You cannot rate your own listing.")
+      return
+    }
 
     if (alreadyRated) {
       toast.info("You already rated this listing.")
       return
     }
 
-    const formData = new FormData()
-    formData.set("item_id", itemId)
-    formData.set("rating", String(rating))
-    formData.set("comment", comment)
-    formData.set("tags", tags)
+    if (rating < 1 || rating > 5) {
+      toast.error("Please choose a rating from 1 to 5 stars.")
+      return
+    }
 
-    startTransition(async () => {
-      const result = await createRating(formData)
-      if (result.error) {
-        toast.error(result.error)
-        return
-      }
+    setIsSubmitting(true)
+    const reviewerName =
+      (user?.firstName && user?.lastName
+        ? `${user.firstName} ${user.lastName}`
+        : user?.firstName || user?.username) || "Anonymous"
 
-      toast.success("Rating submitted")
-      setComment("")
-      setTags("")
-      setRating(0)
-      router.refresh()
+    const parsedTags = tags
+      ? tags
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : []
+
+    upsertLocalRating({
+      itemId,
+      reviewerUserId: userId,
+      revieweeUserId: sellerUserId,
+      reviewerName,
+      rating,
+      comment: comment || null,
+      tags: parsedTags,
     })
+
+    toast.success("Rating submitted")
+    setAlreadyRated(true)
+    setComment("")
+    setTags("")
+    setRating(0)
+    setIsSubmitting(false)
   }
 
   return (
@@ -101,8 +138,8 @@ export function RatingForm({ itemId, sellerName, alreadyRated }: Props) {
         />
       </div>
 
-      <Button type="submit" disabled={isPending || alreadyRated || rating < 1}>
-        {alreadyRated ? "Already Rated" : isPending ? "Submitting..." : "Submit Rating"}
+      <Button type="submit" disabled={isSubmitting || alreadyRated || rating < 1}>
+        {alreadyRated ? "Already Rated" : isSubmitting ? "Submitting..." : "Submit Rating"}
       </Button>
     </form>
   )

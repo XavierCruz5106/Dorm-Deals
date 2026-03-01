@@ -1,4 +1,4 @@
-import { getItemById, getMyRatingForItem, getRatingSummaryForUser } from "@/app/actions"
+import { getItemById } from "@/app/actions"
 import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +10,7 @@ import { ItemDetailActions } from "@/components/item-detail-actions"
 import { RatingForm } from "@/components/rating-form"
 import { FavoriteButton } from "@/components/favorite-button"
 import { BuyNowButton } from "@/components/buy-now-button"
+import { SellerRatingSummary } from "@/components/seller-rating-summary"
 
 export default async function ItemDetailPage({
   params,
@@ -25,10 +26,6 @@ export default async function ItemDetailPage({
 
   const { userId } = await auth()
   const isOwner = userId === item.user_id
-  const [ratingSummary, myRating] = await Promise.all([
-    getRatingSummaryForUser(item.user_id),
-    userId ? getMyRatingForItem(item.id) : Promise.resolve(null),
-  ])
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 lg:px-8">
@@ -110,10 +107,7 @@ export default async function ItemDetailPage({
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Seller
             </h2>
-            <Link
-              href={`/messages/start/${item.user_id}/${item.id}`}
-              className="flex items-center gap-3"
-            >
+            <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={item.user_image_url || undefined} alt={item.user_name || "Seller"} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
@@ -140,21 +134,14 @@ export default async function ItemDetailPage({
                     year: "numeric",
                   })}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {ratingSummary.avgRating || 0.0} / 5 from {ratingSummary.ratingCount} rating
-                  {ratingSummary.ratingCount !== 1 ? "s" : ""}
-                </p>
+                <SellerRatingSummary userId={item.user_id} />
               </div>
-<<<<<<< HEAD
-            </Link>
-=======
             </div>
             <div>
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/profiles/${item.user_id}`}>View Profile</Link>
               </Button>
             </div>
->>>>>>> 4523922e2364871d8071c08fa3c70ac5ed3c30b7
           </div>
 
           {/* Owner actions */}
@@ -162,31 +149,31 @@ export default async function ItemDetailPage({
             <ItemDetailActions itemId={item.id} isSold={item.is_sold} />
           )}
 
-<<<<<<< HEAD
-          {!isOwner && !item.is_sold && (
-            <Button size="lg" className="w-full" asChild>
-              <Link href={`/messages/start/${item.user_id}/${item.id}`}>Contact Seller</Link>
-=======
           {!isOwner && !item.is_sold && userId && <BuyNowButton itemId={item.id} />}
 
-          {!isOwner && !item.is_sold && !userId && (
-            <Button size="lg" variant="outline" asChild>
-              <Link href="/sign-in">Sign In to Buy</Link>
+          {!isOwner && userId && (
+            <Button size="lg" variant="outline" className="w-full" asChild>
+              <Link href={`/messages/start/${item.user_id}/${item.id}`}>Contact Seller</Link>
             </Button>
           )}
 
-          {!isOwner && item.is_sold && userId && (
+          {!isOwner && !userId && (
+            <Button size="lg" variant="outline" asChild>
+              <Link href="/sign-in">Sign In to Contact Seller</Link>
+            </Button>
+          )}
+
+          {!isOwner && userId && (
             <RatingForm
               itemId={item.id}
               sellerName={item.user_name || "this seller"}
-              alreadyRated={Boolean(myRating)}
+              sellerUserId={item.user_id}
             />
           )}
 
           {!isOwner && item.is_sold && !userId && (
             <Button size="lg" variant="outline" asChild>
               <Link href="/sign-in">Sign In to Leave a Rating</Link>
->>>>>>> 4523922e2364871d8071c08fa3c70ac5ed3c30b7
             </Button>
           )}
         </div>

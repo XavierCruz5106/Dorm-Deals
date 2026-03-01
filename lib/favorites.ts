@@ -9,13 +9,17 @@ export function emitFavoritesUpdated() {
   window.dispatchEvent(new CustomEvent(FAVORITES_UPDATED_EVENT))
 }
 
-export function readFavoriteIds() {
+function favoritesStorageKey(userId?: string | null) {
+  return userId ? `${FAVORITES_STORAGE_KEY}:${userId}` : `${FAVORITES_STORAGE_KEY}:guest`
+}
+
+export function readFavoriteIds(userId?: string | null) {
   if (typeof window === "undefined") {
     return new Set<string>()
   }
 
   try {
-    const raw = window.localStorage.getItem(FAVORITES_STORAGE_KEY)
+    const raw = window.localStorage.getItem(favoritesStorageKey(userId))
     if (!raw) {
       return new Set<string>()
     }
@@ -31,17 +35,17 @@ export function readFavoriteIds() {
   }
 }
 
-export function writeFavoriteIds(values: Set<string>) {
+export function writeFavoriteIds(values: Set<string>, userId?: string | null) {
   if (typeof window === "undefined") {
     return
   }
 
-  window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(Array.from(values)))
+  window.localStorage.setItem(favoritesStorageKey(userId), JSON.stringify(Array.from(values)))
   emitFavoritesUpdated()
 }
 
-export function toggleFavoriteId(itemId: string) {
-  const values = readFavoriteIds()
+export function toggleFavoriteId(itemId: string, userId?: string | null) {
+  const values = readFavoriteIds(userId)
 
   if (values.has(itemId)) {
     values.delete(itemId)
@@ -49,7 +53,7 @@ export function toggleFavoriteId(itemId: string) {
     values.add(itemId)
   }
 
-  writeFavoriteIds(values)
+  writeFavoriteIds(values, userId)
   return values
 }
 

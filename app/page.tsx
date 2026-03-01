@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback } from "react"
 import { getItems, type Item } from "@/app/actions"
 import { ItemGrid } from "@/components/item-grid"
 import { SearchFilter } from "@/components/search-filter"
-import { SignInButton, SignedOut } from "@clerk/nextjs"
+import { SignInButton, SignedOut, useAuth } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Heart, Store } from "lucide-react"
 import Link from "next/link"
 import { FAVORITES_UPDATED_EVENT, readFavoriteIds } from "@/lib/favorites"
 
 export default function HomePage() {
+  const { isSignedIn, userId } = useAuth()
   const [items, setItems] = useState<Item[]>([])
   const [search, setSearch] = useState("")
   const [condition, setCondition] = useState("all")
@@ -35,7 +36,7 @@ export default function HomePage() {
 
   useEffect(() => {
     function syncFavorites() {
-      setFavoriteIds(readFavoriteIds())
+      setFavoriteIds(isSignedIn ? readFavoriteIds(userId) : new Set<string>())
     }
 
     syncFavorites()
@@ -46,7 +47,7 @@ export default function HomePage() {
       window.removeEventListener(FAVORITES_UPDATED_EVENT, syncFavorites)
       window.removeEventListener("storage", syncFavorites)
     }
-  }, [])
+  }, [isSignedIn, userId])
 
   const filteredItems =
     viewMode === "favorites" ? items.filter((item) => favoriteIds.has(item.id)) : items

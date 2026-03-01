@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
+import { supabaseServer as supabase } from "@/lib/supabase-server"
 
 function isMissingFavoritesTable(error: unknown) {
   return Boolean(
@@ -68,8 +68,8 @@ export async function POST(req: Request) {
   if (error) {
     if (isMissingFavoritesTable(error)) {
       return NextResponse.json(
-        { error: "Favorites table missing. Run DB migration 004 first." },
-        { status: 400 },
+        { error: "Favorites table missing. Run DB migrations for favorites." },
+        { status: 500 },
       )
     }
 
@@ -101,8 +101,8 @@ export async function DELETE(req: Request) {
   if (error) {
     if (isMissingFavoritesTable(error)) {
       return NextResponse.json(
-        { error: "Favorites table missing. Run DB migration 004 first." },
-        { status: 400 },
+        { error: "Favorites table missing. Run DB migrations for favorites." },
+        { status: 500 },
       )
     }
 

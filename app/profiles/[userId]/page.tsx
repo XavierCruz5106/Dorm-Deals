@@ -1,16 +1,14 @@
 import { auth } from "@clerk/nextjs/server"
 import Link from "next/link"
-import { notFound } from "next/navigation"
 import {
   getProfileByUserId,
-  getRatingSummaryForUser,
-  getRatingsForUser,
   getUserPublicItems,
 } from "@/app/actions"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ItemCard } from "@/components/item-card"
+import { ProfileRatingsPanel } from "@/components/profile-ratings-panel"
 
 export default async function ProfileViewPage({
   params,
@@ -19,17 +17,19 @@ export default async function ProfileViewPage({
 }) {
   const { userId: profileUserId } = await params
   const profile = await getProfileByUserId(profileUserId)
-  if (!profile) {
-    notFound()
+  const listings = await getUserPublicItems(profileUserId)
+  const fallbackProfile = profile || {
+    display_name: listings[0]?.user_name || "Anonymous",
+    major: null,
+    year: null,
+    bio: null,
+    housing_preferences: null,
   }
 
   const { userId } = await auth()
   const isOwner = userId === profileUserId
-  const summary = await getRatingSummaryForUser(profileUserId)
-  const ratings = await getRatingsForUser(profileUserId)
-  const listings = await getUserPublicItems(profileUserId)
 
-  const initials = (profile.display_name || "?")
+  const initials = (fallbackProfile.display_name || "?")
     .split(" ")
     .map((part) => part[0] || "")
     .join("")
@@ -48,19 +48,17 @@ export default async function ProfileViewPage({
             </Avatar>
             <div className="space-y-2">
               <h1 className="text-2xl font-bold text-foreground">
-                {profile.display_name || "Anonymous"}
+                {fallbackProfile.display_name || "Anonymous"}
               </h1>
               <div className="flex flex-wrap gap-2">
-                {profile.major && <Badge variant="secondary">{profile.major}</Badge>}
-                {profile.year && <Badge variant="outline">{profile.year}</Badge>}
-                <Badge variant="outline">{summary.avgRating || 0.0} / 5</Badge>
-                <Badge variant="outline">{summary.ratingCount} ratings</Badge>
+                {fallbackProfile.major && <Badge variant="secondary">{fallbackProfile.major}</Badge>}
+                {fallbackProfile.year && <Badge variant="outline">{fallbackProfile.year}</Badge>}
               </div>
-              {profile.bio && <p className="text-sm text-muted-foreground">{profile.bio}</p>}
-              {profile.housing_preferences && (
+              {fallbackProfile.bio && <p className="text-sm text-muted-foreground">{fallbackProfile.bio}</p>}
+              {fallbackProfile.housing_preferences && (
                 <p className="text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">Housing preferences:</span>{" "}
-                  {profile.housing_preferences}
+                  {fallbackProfile.housing_preferences}
                 </p>
               )}
             </div>
@@ -92,37 +90,7 @@ export default async function ProfileViewPage({
         )}
       </section>
 
-      <section>
-        <h2 className="mb-4 text-xl font-semibold text-foreground">Recent Ratings</h2>
-        {ratings.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-            No ratings yet.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {ratings.slice(0, 10).map((rating) => (
-              <div key={rating.id} className="rounded-xl border border-border bg-card p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="font-medium text-foreground">
-                    {rating.reviewer_name || "Anonymous"}
-                  </p>
-                  <p className="text-sm font-semibold text-foreground">{rating.rating} / 5</p>
-                </div>
-                {rating.comment && <p className="text-sm text-muted-foreground">{rating.comment}</p>}
-                {rating.tags?.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {rating.tags.map((tag) => (
-                      <Badge key={`${rating.id}-${tag}`} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      <ProfileRatingsPanel userId={profileUserId} />
     </div>
   )
 }
