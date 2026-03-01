@@ -4,6 +4,7 @@ import Link from "next/link"
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
 import { Store, Plus, Package, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { InboxLink } from "@/components/inbox-link"
 import { useState } from "react"
 
 export function Navbar() {
@@ -30,6 +31,7 @@ export function Navbar() {
                 My Listings
               </Link>
             </Button>
+            <InboxLink />
             <Button size="sm" asChild>
               <Link href="/sell" className="gap-1.5">
                 <Plus className="h-4 w-4" />
@@ -77,6 +79,7 @@ export function Navbar() {
                   My Listings
                 </Link>
               </Button>
+              <InboxLink />
               <Button size="sm" asChild className="justify-start">
                 <Link href="/sell" onClick={() => setMobileOpen(false)} className="gap-2">
                   <Plus className="h-4 w-4" />

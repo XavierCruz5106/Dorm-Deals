@@ -102,7 +102,10 @@ export default async function ItemDetailPage({
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Seller
             </h2>
-            <div className="flex items-center gap-3">
+            <Link
+              href={`/messages/start/${item.user_id}/${item.id}`}
+              className="flex items-center gap-3"
+            >
               <Avatar className="h-10 w-10">
                 <AvatarImage src={item.user_image_url || undefined} alt={item.user_name || "Seller"} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
@@ -127,7 +130,7 @@ export default async function ItemDetailPage({
                   })}
                 </p>
               </div>
-            </div>
+            </Link>
           </div>
 
           {/* Owner actions */}
@@ -136,8 +139,8 @@ export default async function ItemDetailPage({
           )}
 
           {!isOwner && !item.is_sold && (
-            <Button size="lg" className="w-full" disabled>
-              Contact Seller (Coming Soon)
+            <Button size="lg" className="w-full" asChild>
+              <Link href={`/messages/start/${item.user_id}/${item.id}`}>Contact Seller</Link>
             </Button>
           )}
         </div>

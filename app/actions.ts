@@ -3,6 +3,8 @@
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { revalidatePath } from "next/cache"
 import { supabase } from "@/lib/supabase"
+import { Conversation, Message } from "@/lib/types"
+import util from "util"
 
 export type Item = {
   id: string
@@ -190,3 +192,179 @@ export async function deleteItem(id: string) {
   revalidatePath("/my-listings")
   return { success: true }
 }
+
+// ----------------------------------------------------
+// Messaging helpers
+// ----------------------------------------------------
+
+/**
+ * Returns an existing conversation or creates a new one with the
+ * specified other user.  The returned conversation includes the names
+ * of both participants (taken from Clerk) so the UI can render them
+ * without extra lookups.
+ */
+export async function getOrCreateConversation(
+  otherUserId: string,
+  otherUserName: string | null = null,
+  itemId: string | null = null
+) {
+  const { userId } = await auth()
+  if (!userId) return null
+  if (userId === otherUserId) return null
+
+  // look for an existing conversation in either direction
+  let { data, error } = await supabase
+    .from<Conversation>("conversations")
+    .select("*")
+    .or(
+      `and(user1_id.eq.${userId},user2_id.eq.${otherUserId}),and(user1_id.eq.${otherUserId},user2_id.eq.${userId})`
+    )
+    .limit(1)
+
+  if (error) {
+    console.error("error fetching conversation", error)
+  }
+
+  if (data && data.length > 0) {
+    return data[0]
+  }
+
+  // no existing conversation; create a new one
+  const current = await currentUser()
+  const user1Name =
+    current?.firstName && current?.lastName
+      ? `${current.firstName} ${current.lastName}`
+      : current?.firstName || current?.username || null
+
+  const { data: newConv, error: insertError } = await supabase
+    .from<Conversation>("conversations")
+    .insert({
+      user1_id: userId,
+      user1_name: user1Name,
+      user2_id: otherUserId,
+      user2_name: otherUserName,
+      item_id: itemId,
+    })
+    .single()
+
+  if (insertError) {
+    console.error("error creating conversation", insertError)
+    return null
+  }
+
+  return newConv
+}
+
+export async function getConversationsForUser() {
+  const { userId } = await auth()
+  if (!userId) return []
+
+  const { data, error } = await supabase
+    .from<Conversation>("conversations")
+    .select("*")
+    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("error fetching conversations", error)
+    return []
+  }
+
+  return (data as Conversation[]) ?? []
+}
+
+export async function getConversationById(id: string) {
+  try {
+    const { data, error } = await supabase
+      .from<Conversation>("conversations")
+      .select("*")
+      .eq("id", id)
+      .single()
+
+    if (error) {
+      console.error("error fetching conversation by id:", error?.message ?? error)
+      try {
+        console.error("error details:", util.inspect(error, { depth: null }))
+      } catch (e) {
+        // ignore inspect failures
+      }
+      return null
+    }
+
+    return data as Conversation
+  } catch (err) {
+    console.error("unexpected error in getConversationById:", err?.message ?? err)
+    try {
+      console.error("error details:", util.inspect(err, { depth: null }))
+    } catch (e) {
+      // ignore
+    }
+    return null
+  }
+}
+
+export async function markMessagesRead(conversationId: string) {
+  const { userId } = await auth()
+  if (!userId) return
+
+  try {
+    const { error } = await supabase
+      .from("messages")
+      .update({ is_read: true })
+      .eq("conversation_id", conversationId)
+      .neq("sender_id", userId)
+      .eq("is_read", false)
+
+    // Supabase sometimes returns empty object; log only if actual message/code
+    if (error && Object.keys(error).length) {
+      console.error("error marking messages read", error)
+    }
+  } catch (err) {
+    console.error("unexpected error marking messages read", err)
+  }
+}
+
+export async function getUnreadCount() {
+  const { userId } = await auth()
+  if (!userId) return 0
+
+  // get all conversation ids involving user
+  const convs = await getConversationsForUser()
+  if (!convs || convs.length === 0) return 0
+  const ids = convs.map((c) => c.id)
+
+  const { count, error } = await supabase
+    .from<Message>("messages")
+    .select("id", { count: "exact", head: true })
+    .in("conversation_id", ids)
+    .neq("sender_id", userId)
+    .eq("is_read", false)
+
+  if (error) {
+    console.error("error counting unread messages", error)
+    return 0
+  }
+
+  return count || 0
+}
+
+export async function getMessages(conversationId: string) {
+  const { data, error } = await supabase
+    .from<Message>("messages")
+    .select("*")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true })
+
+  if (error) {
+    console.error("error fetching messages", error)
+    return []
+  }
+
+  // mark them read for recipient (fire-and-forget)
+  markMessagesRead(conversationId).catch((e) => {
+    console.error("markMessagesRead failed", e)
+  })
+
+  return (data as Message[]) ?? []
+}
+
