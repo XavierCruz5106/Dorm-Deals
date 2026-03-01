@@ -1,6 +1,14 @@
 export const FAVORITES_STORAGE_KEY = "dorm_deals_favorites"
 export const FAVORITES_UPDATED_EVENT = "dorm-deals:favorites-updated"
 
+export function emitFavoritesUpdated() {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.dispatchEvent(new CustomEvent(FAVORITES_UPDATED_EVENT))
+}
+
 export function readFavoriteIds() {
   if (typeof window === "undefined") {
     return new Set<string>()
@@ -29,7 +37,7 @@ export function writeFavoriteIds(values: Set<string>) {
   }
 
   window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(Array.from(values)))
-  window.dispatchEvent(new CustomEvent(FAVORITES_UPDATED_EVENT))
+  emitFavoritesUpdated()
 }
 
 export function toggleFavoriteId(itemId: string) {
@@ -43,4 +51,43 @@ export function toggleFavoriteId(itemId: string) {
 
   writeFavoriteIds(values)
   return values
+}
+
+export async function fetchDbFavoriteIds() {
+  const response = await fetch("/api/favorites", {
+    method: "GET",
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { error?: string } | null
+    throw new Error(data?.error || "Failed to fetch favorites.")
+  }
+
+  const data = (await response.json()) as { itemIds?: string[] }
+  return new Set((data.itemIds || []).map((itemId) => String(itemId)))
+}
+
+export async function addDbFavorite(itemId: string) {
+  const response = await fetch("/api/favorites", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemId }),
+  })
+
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { error?: string } | null
+    throw new Error(data?.error || "Failed to save favorite.")
+  }
+}
+
+export async function removeDbFavorite(itemId: string) {
+  const response = await fetch(`/api/favorites?itemId=${encodeURIComponent(itemId)}`, {
+    method: "DELETE",
+  })
+
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { error?: string } | null
+    throw new Error(data?.error || "Failed to remove favorite.")
+  }
 }

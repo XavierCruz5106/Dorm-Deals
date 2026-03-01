@@ -2,9 +2,17 @@
 
 import { type MouseEvent, useEffect, useState } from "react"
 import { Heart } from "lucide-react"
+import { useAuth } from "@clerk/nextjs"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { FAVORITES_UPDATED_EVENT, readFavoriteIds, toggleFavoriteId } from "@/lib/favorites"
+import {
+  FAVORITES_UPDATED_EVENT,
+  addDbFavorite,
+  readFavoriteIds,
+  removeDbFavorite,
+  toggleFavoriteId,
+} from "@/lib/favorites"
 
 export function FavoriteButton({
   itemId,
@@ -16,6 +24,7 @@ export function FavoriteButton({
   showLabel?: boolean
 }) {
   const [isFavorite, setIsFavorite] = useState(false)
+  const { isSignedIn } = useAuth()
 
   useEffect(() => {
     function syncFavorite() {
@@ -33,12 +42,36 @@ export function FavoriteButton({
     }
   }, [itemId])
 
-  function toggleFavorite(e?: MouseEvent) {
+  async function toggleFavorite(e?: MouseEvent) {
     e?.preventDefault()
     e?.stopPropagation()
 
+    const previousFavoriteState = isFavorite
     const favorites = toggleFavoriteId(itemId)
-    setIsFavorite(favorites.has(itemId))
+    const nextFavoriteState = favorites.has(itemId)
+    setIsFavorite(nextFavoriteState)
+
+    if (!isSignedIn) {
+      return
+    }
+
+    try {
+      if (nextFavoriteState) {
+        await addDbFavorite(itemId)
+      } else {
+        await removeDbFavorite(itemId)
+      }
+    } catch (error) {
+      // keep local and DB state consistent if request fails
+      const rollback = toggleFavoriteId(itemId)
+      setIsFavorite(rollback.has(itemId))
+      toast.error(
+        previousFavoriteState
+          ? "Could not remove favorite in database."
+          : "Could not save favorite in database.",
+      )
+      console.error("Favorite sync error:", error)
+    }
   }
 
   return (

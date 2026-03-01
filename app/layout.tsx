@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
+import { FavoritesSync } from '@/components/favorites-sync'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -42,6 +43,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body className="font-sans antialiased">
+          <FavoritesSync />
           <Navbar />
           <main className="min-h-[calc(100vh-4rem)]">
             {children}
