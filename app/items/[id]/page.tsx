@@ -145,16 +145,7 @@ export default async function ItemDetailPage({
                   {ratingSummary.ratingCount !== 1 ? "s" : ""}
                 </p>
               </div>
-<<<<<<< HEAD
             </Link>
-=======
-            </div>
-            <div>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/profiles/${item.user_id}`}>View Profile</Link>
-              </Button>
-            </div>
->>>>>>> 4523922e2364871d8071c08fa3c70ac5ed3c30b7
           </div>
 
           {/* Owner actions */}
@@ -162,31 +153,9 @@ export default async function ItemDetailPage({
             <ItemDetailActions itemId={item.id} isSold={item.is_sold} />
           )}
 
-<<<<<<< HEAD
           {!isOwner && !item.is_sold && (
             <Button size="lg" className="w-full" asChild>
               <Link href={`/messages/start/${item.user_id}/${item.id}`}>Contact Seller</Link>
-=======
-          {!isOwner && !item.is_sold && userId && <BuyNowButton itemId={item.id} />}
-
-          {!isOwner && !item.is_sold && !userId && (
-            <Button size="lg" variant="outline" asChild>
-              <Link href="/sign-in">Sign In to Buy</Link>
-            </Button>
-          )}
-
-          {!isOwner && item.is_sold && userId && (
-            <RatingForm
-              itemId={item.id}
-              sellerName={item.user_name || "this seller"}
-              alreadyRated={Boolean(myRating)}
-            />
-          )}
-
-          {!isOwner && item.is_sold && !userId && (
-            <Button size="lg" variant="outline" asChild>
-              <Link href="/sign-in">Sign In to Leave a Rating</Link>
->>>>>>> 4523922e2364871d8071c08fa3c70ac5ed3c30b7
             </Button>
           )}
         </div>
