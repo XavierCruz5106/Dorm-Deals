@@ -6,14 +6,17 @@ import { ItemGrid } from "@/components/item-grid"
 import { SearchFilter } from "@/components/search-filter"
 import { SignInButton, SignedOut } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Store } from "lucide-react"
+import { ArrowRight, Heart, Store } from "lucide-react"
 import Link from "next/link"
+import { FAVORITES_UPDATED_EVENT, readFavoriteIds } from "@/lib/favorites"
 
 export default function HomePage() {
   const [items, setItems] = useState<Item[]>([])
   const [search, setSearch] = useState("")
   const [condition, setCondition] = useState("all")
   const [loading, setLoading] = useState(true)
+  const [viewMode, setViewMode] = useState<"all" | "favorites">("all")
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
 
   const fetchItems = useCallback(async () => {
     setLoading(true)
@@ -29,6 +32,24 @@ export default function HomePage() {
     const debounce = setTimeout(fetchItems, 300)
     return () => clearTimeout(debounce)
   }, [fetchItems])
+
+  useEffect(() => {
+    function syncFavorites() {
+      setFavoriteIds(readFavoriteIds())
+    }
+
+    syncFavorites()
+    window.addEventListener(FAVORITES_UPDATED_EVENT, syncFavorites)
+    window.addEventListener("storage", syncFavorites)
+
+    return () => {
+      window.removeEventListener(FAVORITES_UPDATED_EVENT, syncFavorites)
+      window.removeEventListener("storage", syncFavorites)
+    }
+  }, [])
+
+  const filteredItems =
+    viewMode === "favorites" ? items.filter((item) => favoriteIds.has(item.id)) : items
 
   return (
     <div className="flex flex-col">
@@ -74,14 +95,36 @@ export default function HomePage() {
             <div>
               <h2 className="text-2xl font-bold text-foreground">Recent Listings</h2>
               <p className="text-sm text-muted-foreground">
-                {items.length} item{items.length !== 1 ? "s" : ""} available
+                {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""} shown
               </p>
             </div>
-            <Link href="/sell">
-              <Button variant="outline" size="sm" className="hidden sm:flex">
-                Post a Listing
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-lg border border-border bg-card p-1">
+                <Button
+                  type="button"
+                  variant={viewMode === "all" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("all")}
+                >
+                  All
+                </Button>
+                <Button
+                  type="button"
+                  variant={viewMode === "favorites" ? "default" : "ghost"}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setViewMode("favorites")}
+                >
+                  <Heart className="h-4 w-4" />
+                  Favorites
+                </Button>
+              </div>
+              <Link href="/sell">
+                <Button variant="outline" size="sm" className="hidden sm:flex">
+                  Post a Listing
+                </Button>
+              </Link>
+            </div>
           </div>
           <SearchFilter
             search={search}
@@ -111,7 +154,7 @@ export default function HomePage() {
             ))}
           </div>
         ) : (
-          <ItemGrid items={items} />
+          <ItemGrid items={filteredItems} />
         )}
       </section>
     </div>

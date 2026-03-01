@@ -4,6 +4,15 @@ import { auth, currentUser } from "@clerk/nextjs/server"
 import { revalidatePath } from "next/cache"
 import { supabase } from "@/lib/supabase"
 
+function isMissingTableError(error: unknown) {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: string }).code === "PGRST205",
+  )
+}
+
 export type Item = {
   id: string
   user_id: string
@@ -18,6 +27,36 @@ export type Item = {
   is_sold: boolean
   created_at: string
   updated_at: string
+}
+
+export type Profile = {
+  user_id: string
+  display_name: string | null
+  bio: string | null
+  major: string | null
+  year: string | null
+  housing_preferences: string | null
+  stripe_account_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type Rating = {
+  id: string
+  item_id: string
+  reviewer_user_id: string
+  reviewee_user_id: string
+  reviewer_name: string | null
+  reviewer_image_url: string | null
+  rating: number
+  comment: string | null
+  tags: string[]
+  created_at: string
+}
+
+export type RatingSummary = {
+  avgRating: number
+  ratingCount: number
 }
 
 export async function getItems(search?: string, condition?: string) {
@@ -57,6 +96,22 @@ export async function getItemById(id: string) {
   }
 
   return data as Item
+}
+
+export async function getUserPublicItems(userId: string) {
+  const { data, error } = await supabase
+    .from("items")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(12)
+
+  if (error) {
+    console.error("Error fetching public user items:", error)
+    return []
+  }
+
+  return (data as Item[]) ?? []
 }
 
 export async function getUserItems() {
@@ -128,6 +183,315 @@ export async function createItem(formData: FormData) {
 
   revalidatePath("/")
   revalidatePath("/my-listings")
+  return { success: true }
+}
+
+export async function getProfileByUserId(userId: string) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .single()
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      return null
+    }
+
+    if ((error as { code?: string }).code !== "PGRST116") {
+      console.error("Error fetching profile:", error)
+    }
+    return null
+  }
+
+  return data as Profile
+}
+
+export async function getProfiles(search?: string) {
+  let query = supabase
+    .from("profiles")
+    .select("*")
+    .order("updated_at", { ascending: false })
+    .limit(100)
+
+  if (search) {
+    query = query.or(`display_name.ilike.%${search}%,major.ilike.%${search}%,bio.ilike.%${search}%`)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      return []
+    }
+
+    console.error("Error fetching profiles:", error)
+    return []
+  }
+
+  return (data as Profile[]) ?? []
+}
+
+export async function getOrCreateMyProfile() {
+  const { userId } = await auth()
+  if (!userId) {
+    return null
+  }
+
+  const existing = await getProfileByUserId(userId)
+  if (existing) {
+    return existing
+  }
+
+  const user = await currentUser()
+  const displayName =
+    user?.firstName && user?.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user?.firstName || user?.username || "Anonymous"
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        user_id: userId,
+        display_name: displayName,
+      },
+      { onConflict: "user_id" },
+    )
+    .select("*")
+    .single()
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      return null
+    }
+
+    console.error("Error creating profile:", error)
+    return null
+  }
+
+  return data as Profile
+}
+
+export async function upsertMyProfile(formData: FormData) {
+  const { userId } = await auth()
+  if (!userId) {
+    return { error: "You must be signed in to update your profile." }
+  }
+
+  const displayName = (formData.get("display_name") as string)?.trim()
+  const bio = (formData.get("bio") as string)?.trim()
+  const major = (formData.get("major") as string)?.trim()
+  const year = (formData.get("year") as string)?.trim()
+  const housingPreferences = (formData.get("housing_preferences") as string)?.trim()
+
+  if (!displayName) {
+    return { error: "Display name is required." }
+  }
+
+  const { error } = await supabase.from("profiles").upsert(
+    {
+      user_id: userId,
+      display_name: displayName,
+      bio: bio || null,
+      major: major || null,
+      year: year || null,
+      housing_preferences: housingPreferences || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  )
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      return { error: "Profiles table is missing. Please run the DB migration first." }
+    }
+
+    console.error("Error updating profile:", error)
+    return { error: "Failed to update profile." }
+  }
+
+  revalidatePath("/profile")
+  revalidatePath("/profiles")
+  revalidatePath(`/profiles/${userId}`)
+  return { success: true }
+}
+
+export async function getRatingsForUser(userId: string) {
+  const { data, error } = await supabase
+    .from("ratings")
+    .select("*")
+    .eq("reviewee_user_id", userId)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      return []
+    }
+
+    console.error("Error fetching received ratings:", error)
+    return []
+  }
+
+  return (data as Rating[]) ?? []
+}
+
+export async function getMyGivenRatings() {
+  const { userId } = await auth()
+  if (!userId) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from("ratings")
+    .select("*")
+    .eq("reviewer_user_id", userId)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      return []
+    }
+
+    console.error("Error fetching given ratings:", error)
+    return []
+  }
+
+  return (data as Rating[]) ?? []
+}
+
+export async function getMyRatingForItem(itemId: string) {
+  const { userId } = await auth()
+  if (!userId) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from("ratings")
+    .select("*")
+    .eq("item_id", itemId)
+    .eq("reviewer_user_id", userId)
+    .single()
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      return null
+    }
+
+    if ((error as { code?: string }).code !== "PGRST116") {
+      console.error("Error fetching existing rating:", error)
+    }
+    return null
+  }
+
+  return data as Rating
+}
+
+export async function getRatingSummaryForUser(userId: string): Promise<RatingSummary> {
+  const ratings = await getRatingsForUser(userId)
+  if (!ratings.length) {
+    return { avgRating: 0, ratingCount: 0 }
+  }
+
+  const total = ratings.reduce((sum, r) => sum + Number(r.rating || 0), 0)
+  const avg = total / ratings.length
+  return { avgRating: Number(avg.toFixed(1)), ratingCount: ratings.length }
+}
+
+export async function createRating(formData: FormData) {
+  const { userId } = await auth()
+  if (!userId) {
+    return { error: "You must be signed in to leave a rating." }
+  }
+
+  const itemId = (formData.get("item_id") as string)?.trim()
+  const ratingRaw = Number(formData.get("rating"))
+  const comment = (formData.get("comment") as string)?.trim()
+  const tagsRaw = (formData.get("tags") as string)?.trim()
+
+  if (!itemId) {
+    return { error: "Missing item to rate." }
+  }
+
+  if (!Number.isFinite(ratingRaw) || ratingRaw < 1 || ratingRaw > 5) {
+    return { error: "Please choose a rating from 1 to 5 stars." }
+  }
+
+  const { data: item, error: itemError } = await supabase
+    .from("items")
+    .select("id,user_id,is_sold")
+    .eq("id", itemId)
+    .single()
+
+  if (itemError || !item) {
+    console.error("Error fetching item for rating:", itemError)
+    return { error: "Item not found." }
+  }
+
+  if (item.user_id === userId) {
+    return { error: "You cannot rate your own listing." }
+  }
+
+  if (!item.is_sold) {
+    return { error: "Ratings can only be submitted after an item is marked sold." }
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("ratings")
+    .select("id")
+    .eq("item_id", itemId)
+    .eq("reviewer_user_id", userId)
+    .single()
+
+  if (existingError && (existingError as { code?: string }).code !== "PGRST116") {
+    if (isMissingTableError(existingError)) {
+      return { error: "Ratings table is missing. Please run the DB migration first." }
+    }
+
+    console.error("Error checking existing rating:", existingError)
+    return { error: "Could not submit rating right now." }
+  }
+
+  if (existing?.id) {
+    return { error: "You already rated this listing." }
+  }
+
+  const user = await currentUser()
+  const reviewerName =
+    user?.firstName && user?.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user?.firstName || user?.username || "Anonymous"
+
+  const tags = tagsRaw
+    ? tagsRaw
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : []
+
+  const { error } = await supabase.from("ratings").insert({
+    item_id: itemId,
+    reviewer_user_id: userId,
+    reviewee_user_id: item.user_id,
+    reviewer_name: reviewerName,
+    reviewer_image_url: user?.imageUrl || null,
+    rating: ratingRaw,
+    comment: comment || null,
+    tags,
+  })
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      return { error: "Ratings table is missing. Please run the DB migration first." }
+    }
+
+    console.error("Error creating rating:", error)
+    return { error: "Failed to submit rating." }
+  }
+
+  revalidatePath(`/items/${itemId}`)
+  revalidatePath("/ratings")
+  revalidatePath(`/profiles/${item.user_id}`)
   return { success: true }
 }
 

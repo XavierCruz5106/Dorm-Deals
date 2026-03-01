@@ -1,4 +1,4 @@
-import { getItemById } from "@/app/actions"
+import { getItemById, getMyRatingForItem, getRatingSummaryForUser } from "@/app/actions"
 import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
@@ -7,6 +7,9 @@ import { ImageIcon, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ItemDetailActions } from "@/components/item-detail-actions"
+import { RatingForm } from "@/components/rating-form"
+import { FavoriteButton } from "@/components/favorite-button"
+import { BuyNowButton } from "@/components/buy-now-button"
 
 export default async function ItemDetailPage({
   params,
@@ -22,6 +25,10 @@ export default async function ItemDetailPage({
 
   const { userId } = await auth()
   const isOwner = userId === item.user_id
+  const [ratingSummary, myRating] = await Promise.all([
+    getRatingSummaryForUser(item.user_id),
+    userId ? getMyRatingForItem(item.id) : Promise.resolve(null),
+  ])
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 lg:px-8">
@@ -69,6 +76,7 @@ export default async function ItemDetailPage({
             <p className="text-3xl font-bold text-primary">
               ${Number(item.price).toFixed(2)}
             </p>
+            <FavoriteButton itemId={item.id} showLabel />
           </div>
 
           {item.description && (
@@ -116,9 +124,12 @@ export default async function ItemDetailPage({
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium text-foreground">
+                <Link
+                  href={`/profiles/${item.user_id}`}
+                  className="font-medium text-foreground hover:text-primary"
+                >
                   {item.user_name || "Anonymous"}
-                </p>
+                </Link>
                 <p className="text-xs text-muted-foreground">
                   Listed {new Date(item.created_at).toLocaleDateString("en-US", {
                     month: "long",
@@ -126,7 +137,16 @@ export default async function ItemDetailPage({
                     year: "numeric",
                   })}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  {ratingSummary.avgRating || 0.0} / 5 from {ratingSummary.ratingCount} rating
+                  {ratingSummary.ratingCount !== 1 ? "s" : ""}
+                </p>
               </div>
+            </div>
+            <div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/profiles/${item.user_id}`}>View Profile</Link>
+              </Button>
             </div>
           </div>
 
@@ -135,9 +155,25 @@ export default async function ItemDetailPage({
             <ItemDetailActions itemId={item.id} isSold={item.is_sold} />
           )}
 
-          {!isOwner && !item.is_sold && (
-            <Button size="lg" className="w-full" disabled>
-              Contact Seller (Coming Soon)
+          {!isOwner && !item.is_sold && userId && <BuyNowButton itemId={item.id} />}
+
+          {!isOwner && !item.is_sold && !userId && (
+            <Button size="lg" variant="outline" asChild>
+              <Link href="/sign-in">Sign In to Buy</Link>
+            </Button>
+          )}
+
+          {!isOwner && item.is_sold && userId && (
+            <RatingForm
+              itemId={item.id}
+              sellerName={item.user_name || "this seller"}
+              alreadyRated={Boolean(myRating)}
+            />
+          )}
+
+          {!isOwner && item.is_sold && !userId && (
+            <Button size="lg" variant="outline" asChild>
+              <Link href="/sign-in">Sign In to Leave a Rating</Link>
             </Button>
           )}
         </div>

@@ -1,7 +1,10 @@
+"use client"
+
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import type { Item } from "@/app/actions"
 import { ImageIcon } from "lucide-react"
+import { FavoriteButton } from "@/components/favorite-button"
 
 export function ItemCard({ item }: { item: Item }) {
   return (
@@ -11,6 +14,11 @@ export function ItemCard({ item }: { item: Item }) {
     >
       {/* Image */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+        <FavoriteButton
+          itemId={item.id}
+          className="absolute left-2 top-2 z-20 h-8 w-8 rounded-full bg-background/90 shadow-sm"
+        />
+
         {item.image_url ? (
           <img
             src={item.image_url}
