@@ -1,7 +1,5 @@
 # clerk configuration (can include secrets)
 /.clerk/
-#How was this not in the OG code. Are we serious?
-.env
 # v0 runtime files
 __v0_runtime_loader.js
 __v0_devtools.tsx
